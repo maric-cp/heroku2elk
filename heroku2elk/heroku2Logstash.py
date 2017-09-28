@@ -13,6 +13,7 @@ from heroku2elk.config import MonitoringConfig, TruncateConfig, \
                               AmqpConfig, MainConfig
 from heroku2elk.lib.syslogSplitter import SyslogSplitter
 from heroku2elk.lib.AMQPConnection import AMQPConnectionSingleton
+from heroku2elk.debug import start_debug
 
 
 class HealthCheckHandler(tornado.web.RequestHandler):
@@ -200,8 +201,8 @@ def configure_logger():
         '"logRecordCreationTime":"%(created)f", '
         '"functionName":"%(funcName)s", '
         '"levelNo":"%(levelno)s", "lineNo":"%(lineno)d", "time":"%(msecs)d", '
-        '"levelName":"%(levelname)s", pid: %d,'
-        '"message":"%(message)s"}' % getpid())
+        '"levelName":"%(levelname)s", "pid": "%(pid)s",'
+        '"message":"%(message)s"}')
     handler.formatter = formatter
     app_log.addHandler(handler)
 
@@ -240,8 +241,6 @@ if __name__ == "__main__":
     ins.add_future(AMQPConnectionSingleton().get_channel(ins),
                    lambda x: logger.info("AMQP is connected"))
     if MainConfig.tornado_debug:
-        from dump_mem import record_top, start
-        start()
-        ins.PeriodicCallback(record_top, 1800*10**3)
+        start_debug(logger)
 
     ins.start()
