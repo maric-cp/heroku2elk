@@ -1,5 +1,6 @@
 import requests
-import datetime
+from sys import argv
+from datetime import datetime
 from loremipsum import get_sentence
 import random
 import uuid
@@ -35,7 +36,8 @@ class HerokuRequestGenerator:
         self.headers['Logplex-Frame-Id'] = str(self.frameCount)
         self.frameCount += 1
         try:
-            return requests.post(self.url, data=payload, headers=self.headers), payload
+            return requests.post(self.url, data=payload,
+                                 headers=self.headers), payload
         except requests.exceptions.Timeout:
             return None, payload
 
@@ -45,11 +47,13 @@ class FakeHerokuLog:
     Generates a fake log line
     """
     def __init__(self):
-        self.date = datetime.datetime.now().replace(microsecond=0, tzinfo=pytz.utc)
+        self.date = datetime.now().replace(microsecond=0, tzinfo=pytz.utc)
         self.text = get_sentence(True)
         self.app = 'DummyAppName'
         self.dyno = 'web.1'
-        self.msg = '<40>1 {} host {} {} - {}\n'.format(self.date.isoformat(), self.app, self.dyno, self.text)
+        self.msg = '<40>1 {} host {} {} - {}\n'.format(self.date.isoformat(),
+                                                       self.app, self.dyno,
+                                                       self.text)
 
     def encode(self):
         msg = self.msg.encode('utf-8')
@@ -116,7 +120,8 @@ def get_stats(worker):
 
 def run(url, client_count):
     """
-    run the fake log generator targeting the given 'url' with 'clientCount' clients
+    run the fake log generator targeting the given 'url' with 'clientCount'
+    clients
     :param url: the target url
     :param client_count: number of client to create (nb of threads)
     :return:
@@ -129,13 +134,25 @@ def run(url, client_count):
         last_timeout = 0
         while True:
             time.sleep(1)
-            [total_sent, total_timeout] = [sum(el) for el in zip(*map(get_stats, workers))]
-            print('last second stats, sent:', total_sent - last_sent, 'timeout:', total_timeout - last_timeout)
+            [total_sent, total_timeout] = [sum(el) for el in zip(
+                                            *map(get_stats, workers))]
+            print('last second stats, sent:', total_sent - last_sent,
+                  'timeout:', total_timeout - last_timeout)
             last_sent, last_timeout = total_sent, total_timeout
 
     except KeyboardInterrupt:
         list(map(stop_thread, threads))
 
+
 if __name__ == '__main__':
-    run('http://127.0.0.1:8080/heroku/v1/production/DummyAppName', 1)
-    #run('http://127.0.0.1:8080/mobile/v1/production', 1)
+    if argv[1:]:
+        host = argv[1]
+        if ':' not in host:
+            host += '8080'
+    else:
+        host = '127.0.0.1:8080'
+    if argv[2:]:
+        url = argv[2]  # mobile/v1/production
+    else:
+        url = 'heroku/v1/production/DummyAppName'
+    run('http://%s/%s' % (host, url), 1)

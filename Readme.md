@@ -17,14 +17,17 @@ This service is written in python and based on the well-known Tornado web server
 ### Requirements
 
 Install the following requirements:
+
 ```
 pip install -r requirements.txt
 ```
+
 ### Run
+
 You're ready to go!
 
 ```
-python -m src.heroku2Logstash
+python -m heroku2elk.main
 ```
 
 ### Development
@@ -32,19 +35,24 @@ python -m src.heroku2Logstash
 #### Unit-testing
 
 ```
-python -m unittests
+python -m unittest
 ```
 
 #### Fake Log Generator
 ##### Requirements
 
 Install the following requirements
+
 ```
 pip install -r dev.txt
 ```
+
 ##### What is it for?
 To send fake heroku logs, to debug
 
 ```
-python -m src.fakelogGenerator
+python scripts/fakelog.py [ host | host:port [ mobile/v1/production ] ]
 ```
+
+This default to localhost:8080 heroku/v1/production/DummyAppName
+

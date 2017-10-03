@@ -7,13 +7,12 @@ from logging.handlers import SysLogHandler, RotatingFileHandler
 from statsd import StatsClient
 import pika
 import json
-from os import getpid
 
 from heroku2elk.config import MonitoringConfig, TruncateConfig, \
-                              AmqpConfig, MainConfig
-from heroku2elk.lib.syslogSplitter import SyslogSplitter
-from heroku2elk.lib.AMQPConnection import AMQPConnectionSingleton
-from heroku2elk.debug import start_debug
+                              MainConfig
+from heroku2elk.lib.syslog import Splitter
+from heroku2elk.lib.amqp import AMQPConnectionSingleton
+from heroku2elk.lib.debug import start_debug
 
 
 class HealthCheckHandler(tornado.web.RequestHandler):
@@ -53,8 +52,7 @@ class HerokuHandler(tornado.web.RequestHandler):
             MonitoringConfig.metrics_host,
             MonitoringConfig.metrics_port,
             prefix=MonitoringConfig.metrics_prefix)
-        self.syslogSplitter = SyslogSplitter(TruncateConfig(),
-                                             self.statsdClient)
+        self.splitter = Splitter(TruncateConfig(), self.statsdClient)
         self.ioloop = ioloop
 
     def set_default_headers(self):
@@ -77,7 +75,7 @@ class HerokuHandler(tornado.web.RequestHandler):
         try:
             self.statsdClient.incr('input.heroku', count=1)
             # 1. split
-            logs = self.syslogSplitter.split(self.request.body)
+            logs = self.splitter.split(self.request.body)
             # 2. forward
             channel = yield AMQPConnectionSingleton().get_channel(self.ioloop)
             [self._push_to_AMQP(channel, l) for l in logs]
@@ -196,7 +194,7 @@ def configure_logger():
     handler = SysLogHandler(address='/dev/log')
     handler.setLevel(logging.WARNING)
     formatter = logging.Formatter(
-        'heroku2Logstash: { "loggerName":"%(name)s", '
+        'heroku2logstash: { "loggerName":"%(name)s", '
         '"asciTime":"%(asctime)s", "pathName":"%(pathname)s", '
         '"logRecordCreationTime":"%(created)f", '
         '"functionName":"%(funcName)s", '
@@ -213,7 +211,7 @@ def configure_logger():
     app_log.addHandler(ch)
 
     # File log (max 10GB: 10*é**30B)
-    file_handler = RotatingFileHandler('Heroku2Logstash.log',
+    file_handler = RotatingFileHandler('heroku2logstash.log',
                                        maxBytes=10*2**30, backupCount=10)
     file_handler.setLevel(logging.INFO)
     file_handler.formatter = default_formatter

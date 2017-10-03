@@ -2,11 +2,11 @@ from heroku2elk.config import MainConfig
 
 if not MainConfig.tornado_debug:
 
+    # noop
     def start_debug(_): pass
 
 else:
 
-    from logging import getLogger
     from linecache import getline
     from os import sep
     from random import random
@@ -14,10 +14,10 @@ else:
 
     from tornado.ioloop import PeriodicCallback, IOLoop
 
-
     def start_debug(logger):
+
         start()
-        cb = PeriodicCallback(record_top(logger), 60 * 10**3)
+        cb = PeriodicCallback(record_top(logger), 10 * 60 * 10**3)
         cb.start()
 
 
@@ -33,7 +33,7 @@ def record_top(logger, key_type='lineno', limit=10):
             snapshot = take_snapshot()
             snapshot = snapshot.filter_traces((
                 Filter(False, "<frozen importlib._bootstrap>"),
-                #Filter(False, "<unknown>"),
+                # Filter(False, "<unknown>"),
             ))
             top_stats = snapshot.statistics(key_type)
 
@@ -55,6 +55,6 @@ def record_top(logger, key_type='lineno', limit=10):
             total = sum(stat.size for stat in top_stats)
             record("Total allocated size: %.1f KiB" % (total / kb))
 
-        return IOLoop.current().call_later(int(random() * 60), pretty_top)
+        return IOLoop.current().call_later(int(random() * 60 * 4), pretty_top)
 
     return async_sleep
