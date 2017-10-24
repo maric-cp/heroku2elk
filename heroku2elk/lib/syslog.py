@@ -1,16 +1,18 @@
 import re
-from heroku2elk.config import TruncateConfig
-
-patternStackTrace = re.compile(TruncateConfig.stack_pattern)
-patternToken = re.compile(TruncateConfig.token_pattern)
 
 
 class Splitter:
-    def __init__(self, config, statsd):
-        self.config = config
-        self.statsdClient = statsd
+
+    def __init__(self, conf, truncate_to=-1):
+        self.patternToken = re.compile(conf.token_pattern)
+        self.patternStackTrace = re.compile(conf.stack_pattern)
+        self.truncate_to = truncate_to
 
     def split(self, bytes):
+        # '''Split by lines heroku payload and apply filters.'''
+
+        # lines = []
+
         """ Split an heroku syslog encoded payload using the octet counting
         method as described here :
         https://tools.ietf.org/html/rfc6587#section-3.4.1
@@ -31,20 +33,20 @@ class Splitter:
                 msg = msg[:-1]
 
             decoded_msg = msg.decode('utf-8', 'replace')
-            if self.config.truncate_activated:
+            if self.truncate_to > -1:
                 # replace token by __TOKEN_REPLACED__
-                decoded_msg = patternToken.sub(lambda x:
-                                               '{}__TOKEN_REPLACED__{}'
-                                               .format(x.group(1), x.group(3)),
-                                               decoded_msg)
+                decoded_msg = self.patternToken.sub(lambda x:
+                                                    '{}__TOKEN_REPLACED__{}'
+                                                    .format(x.group(1),
+                                                            x.group(3)),
+                                                    decoded_msg)
 
-                max_ = self.config.truncate_max_msg_length
+                max_ = self.truncate_to
                 # TRUNCATE Big logs except stack traces
-                if not patternStackTrace.search(decoded_msg
-                                                ) and len(decoded_msg) > max_:
+                if not self.patternStackTrace.search(
+                               decoded_msg) and len(decoded_msg) > max_:
                     decoded_msg = '%s __TRUNCATED__ %s' % (
                         decoded_msg[:max_//2], decoded_msg[-max_//2:])
-                    self.statsdClient.incr('truncate', count=1)
 
             lines.append(decoded_msg)
 

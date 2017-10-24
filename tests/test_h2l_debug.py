@@ -1,23 +1,28 @@
-from tornado.testing import AsyncHTTPTestCase, gen_test
-from tornado.concurrent import Future
-from heroku2elk import main
-from heroku2elk.config import MainConfig
-from heroku2elk.lib.amqp import AMQPConnectionSingleton
 import json
 
+from tornado.testing import AsyncHTTPTestCase, gen_test
+from tornado.concurrent import Future
+from tornado.gen import sleep
 
-class TestH2LApp(AsyncHTTPTestCase):
+from heroku2elk.lib import debug
+from heroku2elk import config, main
+
+
+class TestH2LDebug(AsyncHTTPTestCase):
 
     def get_app(self):
-        conf = MainConfig()
-        MainConfig.environments = ['integration']
-        MainConfig.apis = ['heroku:v1:']
-        main.configure_logger()
+        conf = config.MainConfig()
+        conf.environments = ['integration']
+        conf.apis = ['heroku:v1:']
+        conf.tornado_debug = True
+        conf.logger = main.configure_logger()
+        debug.delay = 0.01
+        debug.start_debug(conf)
         self.app = main.make_app(conf)
         return self.app
 
     def setUp(self):
-        super(TestH2LApp, self).setUp()
+        super().setUp()
 
     def tearDown(self):
         main.close_app(self.app)
@@ -34,10 +39,10 @@ class TestH2LApp(AsyncHTTPTestCase):
 
     @gen_test
     def test_H2L_heroku_push_to_amqp_success(self):
-        conn = AMQPConnectionSingleton.AMQPConnection()
+        conn = self.app.amqp_conn
         self._channel = yield conn.create_amqp_client(self.io_loop)
         self._channel.queue_bind(self.on_bindok, "heroku_integration_queue",
-                                 MainConfig.exchange,
+                                 config.AmqpConfig.exchange,
                                  "heroku.v1.integration.toto")
         self._channel.basic_consume(self.on_message,
                                     "heroku_integration_queue")
@@ -60,9 +65,11 @@ class TestH2LApp(AsyncHTTPTestCase):
         self.assertEqual(json_res['message'], '<40>1 2017-06-21T17:02:55+00:00'
                          ' host ponzi web.1 - Lorem ipsum dolor sit amet, '
                          "consecteteur adipiscing elit b'quis' b'ad'.")
+        yield sleep(0.5)
         value = yield response
         self.assertEqual(value.code, 200)
         self.assertEqual(len(value.body), 0)
+        debug.delay = 0.01
         self._channel.close()
 
     def on_message(self, unused_channel, basic_deliver, properties, body):

@@ -1,10 +1,9 @@
 from tornado import gen
 from tornado.concurrent import Future
 import logging
-from statsd import StatsClient
-from heroku2elk.config import MonitoringConfig, AmqpConfig
 import pika
-import os
+from tornado.ioloop import IOLoop
+from statsd import StatsClient
 
 
 class AMQPConnectionSingleton:
@@ -12,10 +11,12 @@ class AMQPConnectionSingleton:
     __instance = None
 
     @gen.coroutine
-    def get_channel(self, ioloop):
+    def get_channel(self, conf, ioloop=None):
+        if ioloop is None:
+            ioloop = IOLoop.current()
         ins = AMQPConnectionSingleton.__instance
         if ins is None:
-            conn = AMQPConnectionSingleton.AMQPConnection()
+            conn = AMQPConnectionSingleton.AMQPConnection(conf)
             ins = yield conn.create_amqp_client(ioloop)
         return ins
 
@@ -25,26 +26,30 @@ class AMQPConnectionSingleton:
         AMQPConnectionSingleton.__instance = None
 
     class AMQPConnection:
-        def __init__(self):
+        def __init__(self, conf):
             self._connection = None
             self._channel = None
+            self.config = conf
             self.future_channel = Future()
             self.logger = logging.getLogger("tornado.application")
             self.statsdClient = StatsClient(
-                MonitoringConfig.metrics_host,
-                MonitoringConfig.metrics_port,
-                prefix=MonitoringConfig.metrics_prefix)
+                self.config.metrics_host,
+                self.config.metrics_port,
+                prefix=self.config.metrics_prefix)
 
         @gen.coroutine
         def on_exchange_declareok(self, unused_frame):
             # Declare the queues
-            yield self.declare_queue("mobile_integration_queue")
-            yield self.declare_queue("mobile_production_queue")
-            yield self.declare_queue("heroku_integration_queue")
-            yield self.declare_queue("heroku_production_queue")
-            self.logger.info("pid:{} Exchange is declared:{} host:{} port:{}"
-                             .format(os.getpid(), AmqpConfig.exchange,
-                                     AmqpConfig.host, AmqpConfig.port))
+            done = set()
+            for api, ver, handler in (e.split(':') for e in self.config.apis):
+                if api in done:
+                    continue
+                done.add(api)
+                for env in self.config.environments:
+                    yield self.declare_queue("%s_%s_queue" % (api, env))
+            self.logger.info("Exchange is declared:{} host:{} port:{}"
+                             .format(self.config.exchange,
+                                     self.config.host, self.config.port))
             self.future_channel.set_result(self._channel)
 
         def declare_queue(self, name):
@@ -53,18 +58,17 @@ class AMQPConnectionSingleton:
             def on_queue_ready(method_frame):
                 future_result.set_result(True)
 
-            self.logger.info("pid:{} Queue declare:{}".format(
-                os.getpid(), name))
+            self.logger.info("Queue declare:{}".format(name))
             self._channel.queue_declare(on_queue_ready, queue=name,
                                         durable=True, exclusive=False,
                                         auto_delete=False)
             return future_result
 
         def on_connection_close(self, connection):
-            self.logger.error("pid:{} AMQP is disconnected from exchange:{} "
+            self.logger.error("AMQP is disconnected from exchange:{} "
                               "host:{} port:{} connexion:{}".format(
-                                  os.getpid(), AmqpConfig.exchange,
-                                  AmqpConfig.host, AmqpConfig.port,
+                                  self.config.exchange,
+                                  self.config.host, self.config.port,
                                   connection))
             self._connection = None
             self._channel = None
@@ -73,17 +77,17 @@ class AMQPConnectionSingleton:
             self._connection = connection
             connection.channel(on_open_callback=self.on_channel_open)
 
-            self.logger.info("pid:{} AMQP is connected exchange:{} host:{} "
+            self.logger.info("AMQP is connected exchange:{} host:{} "
                              "port:{} connexion:{}".format(
-                                 os.getpid(), AmqpConfig.exchange,
-                                 AmqpConfig.host, AmqpConfig.port,
+                                 self.config.exchange,
+                                 self.config.host, self.config.port,
                                  connection))
 
         def on_channel_open(self, channel):
             self._channel = channel
             channel.exchange_declare(self.on_exchange_declareok,
-                                     exchange=AmqpConfig.exchange,
-                                     type='topic')
+                                     exchange=self.config.exchange,
+                                     exchange_type='topic')
             self.logger.info("channel open {}".format(channel))
             # Enabled delivery confirmations
             self._channel.confirm_delivery(self.on_delivery_confirmation)
@@ -98,16 +102,16 @@ class AMQPConnectionSingleton:
                 self.statsdClient.incr('amqp.output_failure', count=1)
 
         def create_amqp_client(self, ioloop):
-            self.logger.info("pid:{} AMQP connecting to: exchange:{} host:{} "
+            self.logger.info("AMQP connecting to: exchange:{} host:{} "
                              "port: {}".format(
-                                 os.getpid(), AmqpConfig.exchange,
-                                 AmqpConfig.host, AmqpConfig.port))
-            credentials = pika.PlainCredentials(AmqpConfig.user,
-                                                AmqpConfig.password)
+                                 self.config.exchange,
+                                 self.config.host, self.config.port))
+            credentials = pika.PlainCredentials(self.config.user,
+                                                self.config.password)
 
             pika.TornadoConnection(
-                pika.ConnectionParameters(host=AmqpConfig.host,
-                                          port=AmqpConfig.port,
+                pika.ConnectionParameters(host=self.config.host,
+                                          port=self.config.port,
                                           credentials=credentials),
                 self.on_connection_open,
                 on_close_callback=self.on_connection_close,

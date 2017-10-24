@@ -10,8 +10,8 @@ class TestH2LApp(AsyncHTTPTestCase):
 
     def get_app(self):
         conf = MainConfig()
-        MainConfig.environments = ['integration']
-        MainConfig.apis = ['heroku:v1:']
+        conf.environments = ['integration']
+        conf.apis = ['heroku:v1:heroku2elk.lib.handlers.HerokuHandler2']
         main.configure_logger()
         self.app = main.make_app(conf)
         return self.app
