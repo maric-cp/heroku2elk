@@ -17,10 +17,10 @@ def make_app(conf, ioloop=None):
     handlers = []
     for api, vers in conf.handlers.items():
         for ver, hdls in vers.items():
-            for hdl in hdls:
-                handlers.append((hdl.get_url(api, ver), hdl,
-                                 dict(api=api, ver=ver, conf=conf,
-                                      )))
+            for h in hdls:
+                handlers.append(
+                    (h.get_url(api, ver), h, dict(api=api, ver=ver, conf=conf))
+                )
     app = tornado.web.Application(handlers)
     app.conf = conf
     app.log = configure_logger()

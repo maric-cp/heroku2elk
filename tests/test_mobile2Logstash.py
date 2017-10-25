@@ -2,6 +2,7 @@ from tornado.testing import AsyncHTTPTestCase, gen_test
 from tornado.concurrent import Future
 
 import heroku2elk.main as h2l
+from heroku2elk.lib import handlers
 from heroku2elk.config import MainConfig
 from heroku2elk.lib.amqp import AMQPConnectionSingleton
 
@@ -11,8 +12,7 @@ class TestH2LMobile(AsyncHTTPTestCase):
     def get_app(self):
         conf = MainConfig()
         conf.environments = ['integration']
-        conf.apis = ['mobile:v1:GenericAPIHandler']
-        h2l.configure_logger()
+        conf.handlers = dict(mobile=dict(v1=[handlers.GenericAMQPHandler]))
         self.app = h2l.make_app(conf)
         return self.app
 
@@ -49,7 +49,6 @@ class TestH2LMobile(AsyncHTTPTestCase):
         self._channel.close()
 
     def on_message(self, unused_channel, basic_deliver, properties, body):
-        print(body)
         if not self.futureMsg.done():
             self.futureMsg.set_result(body)
         self._channel.basic_ack(basic_deliver.delivery_tag)

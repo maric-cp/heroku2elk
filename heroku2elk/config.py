@@ -80,8 +80,6 @@ class MainConfig:
                      'TORNADO_MULTIPROCESSING_ACTIVATED', 'true') == 'true'
         self.tornado_debug = get('TORNADO_DEBUG', 'false') == 'true'
         self.environments = get('ENVIRONMENTS', 'main').split(',')
-        self.apis = get('APIS', 'heroku:v1,api:heartbeat,api:healthcheck'
-                        ).split(',')
         self.handlers = _convert_bare_conf_to_dict(
                              get('HANDLERS', 'HerokuHandler:heroku:v1,'
                                  'HealthCheckHandler:api:healthcheck,'

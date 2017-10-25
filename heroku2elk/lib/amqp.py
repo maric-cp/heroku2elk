@@ -39,14 +39,16 @@ class AMQPConnectionSingleton:
 
         @gen.coroutine
         def on_exchange_declareok(self, unused_frame):
+            from heroku2elk.lib.handlers import GenericAMQPHandler
             # Declare the queues
-            done = set()
-            for api, ver, handler in (e.split(':') for e in self.config.apis):
-                if api in done:
-                    continue
-                done.add(api)
-                for env in self.config.environments:
-                    yield self.declare_queue("%s_%s_queue" % (api, env))
+            for api, _ in self.config.handlers.items():
+                for __, hdls in _.items():
+                    if list(filter(lambda h:
+                                   issubclass(h, GenericAMQPHandler),
+                                   hdls)):
+                        for env in self.config.environments:
+                            yield self.declare_queue("%s_%s_queue"
+                                                     % (api, env))
             self.logger.info("Exchange is declared:{} host:{} port:{}"
                              .format(self.config.exchange,
                                      self.config.host, self.config.port))

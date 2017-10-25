@@ -41,9 +41,15 @@ class GenericAPIHandler(RequestHandler):
         self.conf = conf
         self.api = api
         self.version = ver
-        self.plugins = conf.plugins[api][ver]
-        self.plugins.extend(conf.plugins[api]['*'])
-        self.plugins.extend(conf.plugins['*']['*'])
+        self.plugins = []
+        if api in conf.plugins:
+            if '*' in conf.plugins[api]:
+                self.plugins.extend(conf.plugins[api]['*'])
+            if ver in conf.plugins[api]:
+                self.plugins.extend(conf.plugins[api][ver])
+        if '*' in conf.plugins:
+            if '*' in conf.plugins['*']:
+                self.plugins.extend(conf.plugins['*']['*'])
         self.logger = logging.getLogger("tornado.application")
         self.statsd_client = StatsClient(conf.metrics_host, conf.metrics_port,
                                          prefix=conf.metrics_prefix)
@@ -240,6 +246,7 @@ class HerokuHandler2(MultiLineHandler):
         """
         self.set_header('Content-Length', '0')
 
+    @gen.coroutine
     def process_log(self, log):
 
         payload = dict()
