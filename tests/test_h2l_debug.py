@@ -4,7 +4,7 @@ from tornado.testing import AsyncHTTPTestCase, gen_test
 from tornado.concurrent import Future
 from tornado.gen import sleep
 
-from heroku2elk.lib import debug
+from heroku2elk.lib import debug, amqp
 from heroku2elk import config, main
 
 
@@ -16,9 +16,9 @@ class TestH2LDebug(AsyncHTTPTestCase):
         conf.apis = ['heroku:v1:']
         conf.tornado_debug = True
         conf.logger = main.configure_logger()
-        debug.delay = 0.01
-        debug.start_debug(conf)
+        debug.start_debug(conf, 0.01)
         self.app = main.make_app(conf)
+        self.app.conf = conf
         return self.app
 
     def setUp(self):
@@ -39,10 +39,10 @@ class TestH2LDebug(AsyncHTTPTestCase):
 
     @gen_test
     def test_H2L_heroku_push_to_amqp_success(self):
-        conn = self.app.amqp_conn
-        self._channel = yield conn.create_amqp_client(self.io_loop)
+        self._channel = yield amqp.AMQPConnectionSingleton(
+                                    ).get_channel(self.app.conf, self.io_loop)
         self._channel.queue_bind(self.on_bindok, "heroku_integration_queue",
-                                 config.AmqpConfig.exchange,
+                                 self.app.conf.exchange,
                                  "heroku.v1.integration.toto")
         self._channel.basic_consume(self.on_message,
                                     "heroku_integration_queue")

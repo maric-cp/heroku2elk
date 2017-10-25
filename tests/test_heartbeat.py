@@ -4,14 +4,14 @@ from heroku2elk.config import MainConfig
 import heroku2elk.main as h2l
 
 
-class TestH2LApp(AsyncHTTPTestCase):
+class TestH2LHeartbeat(AsyncHTTPTestCase):
     def get_app(self):
         h2l.configure_logger()
         self.app = h2l.make_app(MainConfig())
         return self.app
 
     def setUp(self):
-        super(TestH2LApp, self).setUp()
+        super().setUp()
 
     def tearDown(self):
         h2l.close_app(self.app)

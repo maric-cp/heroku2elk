@@ -1,7 +1,49 @@
 from collections import defaultdict
+import logging
+from logging.handlers import SysLogHandler, RotatingFileHandler
 from os import environ
 from importlib import import_module
+
 get = environ.get
+
+
+def configure_logger():
+    """
+    configure logger object with handlers
+    """
+    app_log = logging.getLogger("tornado.application")
+    app_log.setLevel(logging.INFO)
+    default_formatter = logging.Formatter('%(asctime)-15s pid:%(process)s'
+                                          ' %(message)s')
+
+    # syslog
+    handler = SysLogHandler(address='/dev/log')
+    handler.setLevel(logging.WARNING)
+    formatter = logging.Formatter(
+        'heroku2logstash: { "loggerName":"%(name)s", '
+        '"asciTime":"%(asctime)s", "pathName":"%(pathname)s", '
+        '"logRecordCreationTime":"%(created)f", '
+        '"functionName":"%(funcName)s", '
+        '"levelNo":"%(levelno)s", "lineNo":"%(lineno)d", "time":"%(msecs)d", '
+        '"levelName":"%(levelname)s", "pid": "%(process)s",'
+        '"message":"%(message)s"}')
+    handler.formatter = formatter
+    app_log.addHandler(handler)
+
+    # console log
+    ch = logging.StreamHandler()
+    ch.setLevel(logging.DEBUG)
+    ch.formatter = default_formatter
+    app_log.addHandler(ch)
+
+    # File log (max 1 GB: 1 * 2**30 B)
+    file_handler = RotatingFileHandler('heroku2logstash.log',
+                                       maxBytes=2**30, backupCount=10)
+    file_handler.setLevel(logging.INFO)
+    file_handler.formatter = default_formatter
+    app_log.addHandler(file_handler)
+    logging.captureWarnings(True)
+    return app_log
 
 
 def _get_mod(name, default_mod):
@@ -65,3 +107,6 @@ class MainConfig:
         self.port = int(get('AMQP_PORT', 5672))
         self.user = get('AMQP_USER', 'guest')
         self.password = get('AMQP_PASSWORD', 'guest')
+
+    def close(self):
+        logging.shutdown()

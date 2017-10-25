@@ -3,10 +3,13 @@ import re
 
 class Splitter:
 
-    def __init__(self, conf, truncate_to=-1):
+    def __init__(self, conf):
         self.patternToken = re.compile(conf.token_pattern)
         self.patternStackTrace = re.compile(conf.stack_pattern)
-        self.truncate_to = truncate_to
+        if conf.truncate_activated:
+            self.truncate_to = conf.truncate_max_msg_length
+        else:
+            self.truncate_to = -1
 
     def split(self, bytes):
         # '''Split by lines heroku payload and apply filters.'''

@@ -91,7 +91,9 @@ class SyslogSplitterTest(unittest.TestCase):
                   b"taciti' b'a' b'facilisi' b'a'.\n104 <40>1 2017-06-21T17:02"
                   b":55+00:00 host ponzi web.1 - Lorem ipsum dolor sit amet, c"
                   b"onsecteteur adipiscing.")
-        logs = Splitter(MainConfig(), 100).split(stream)
+        conf = MainConfig()
+        conf.truncate_max_msg_length = 100
+        logs = Splitter(conf).split(stream)
         self.assertEqual(logs, [
             "<40>1 2017-06-21T17:02:55+00:00 host ponzi web.1 - __TRUNCATED__ "
             " amet, consecteteur adipiscing elit b'quis' b'ad'.",
@@ -112,7 +114,9 @@ class SyslogSplitterTest(unittest.TestCase):
                   b"' b'vel' b'ad' b'taciti' b'a' b'facilisi' b'a'.\n104 <40>1"
                   b" 2017-06-21T17:02:55+00:00 host ponzi web.1 - Lorem ipsum "
                   b"dolor sit amet, consecteteur adipiscing.")
-        logs = Splitter(MainConfig(), 100).split(stream)
+        conf = MainConfig()
+        conf.truncate_max_msg_length = 100
+        logs = Splitter(conf).split(stream)
         self.assertEqual(logs, [
             "<40>1 2017-06-21T17:02:55+00:00 host ponzi web.1 - {'stack':'toto"
             "'} Lorem ipsum dolor sit amet, consecteteur adipiscing elit b'qui"
@@ -134,7 +138,9 @@ class SyslogSplitterTest(unittest.TestCase):
                   b" b'a' b'vel' b'ad' b'taciti' b'a' b'facilisi' b'a'.\n104 <"
                   b"40>1 2017-06-21T17:02:55+00:00 host ponzi web.1 - Lorem ip"
                   b"sum dolor sit amet, consecteteur adipiscing.")
-        logs = Splitter(MainConfig(), 100).split(stream)
+        conf = MainConfig()
+        conf.truncate_max_msg_length = 100
+        logs = Splitter(conf).split(stream)
         self.assertEqual(logs, [
             "<40>1 2017-06-21T17:02:55+00:00 host ponzi web.1 - __TRUNCATED__ "
             "elit b'quis' b'ad'.{\"token\":\"__TOKEN_REPLACED__\"} ",
@@ -156,7 +162,9 @@ class SyslogSplitterTest(unittest.TestCase):
                   b"i' b'a'.\n104 <40>1 2017-06-21T17:02:55+00:00 host ponzi w"
                   b"eb.1 - Lorem ipsum dolor sit amet, consecteteur adipiscin"
                   b"g.")
-        logs = Splitter(MainConfig(), 100).split(stream)
+        conf = MainConfig()
+        conf.truncate_max_msg_length = 100
+        logs = Splitter(conf).split(stream)
         self.assertEqual(logs, [
             "<40>1 2017-06-21T17:02:55+00:00 host ponzi web.1 - __TRUNCATED__"
             " b'quis' b'ad'.{\"toto_token\":\"__TOKEN_REPLACED__\"} ",

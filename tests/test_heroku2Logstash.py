@@ -10,8 +10,9 @@ class TestH2LApp(AsyncHTTPTestCase):
 
     def get_app(self):
         conf = MainConfig()
-        MainConfig.environments = ['integration']
-        MainConfig.apis = ['heroku:v1:']
+        conf.environments = ['integration']
+        conf.apis = ['heroku:v1:']
+        self.conf = conf
         main.configure_logger()
         self.app = main.make_app(conf)
         return self.app
@@ -34,10 +35,10 @@ class TestH2LApp(AsyncHTTPTestCase):
 
     @gen_test
     def test_H2L_heroku_push_to_amqp_success(self):
-        conn = AMQPConnectionSingleton.AMQPConnection()
+        conn = AMQPConnectionSingleton.AMQPConnection(self.conf)
         self._channel = yield conn.create_amqp_client(self.io_loop)
         self._channel.queue_bind(self.on_bindok, "heroku_integration_queue",
-                                 MainConfig.exchange,
+                                 self.conf.exchange,
                                  "heroku.v1.integration.toto")
         self._channel.basic_consume(self.on_message,
                                     "heroku_integration_queue")

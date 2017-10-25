@@ -6,26 +6,26 @@ from heroku2elk.config import MainConfig
 from heroku2elk.lib.amqp import AMQPConnectionSingleton
 
 
-class TestH2LApp(AsyncHTTPTestCase):
+class TestH2LMobile(AsyncHTTPTestCase):
 
     def get_app(self):
         conf = MainConfig()
         conf.environments = ['integration']
-        conf.apis = ['mobile:v1:Generic']
+        conf.apis = ['mobile:v1:GenericAPIHandler']
         h2l.configure_logger()
         self.app = h2l.make_app(conf)
         return self.app
 
     def setUp(self):
-        super(TestH2LApp, self).setUp()
+        super().setUp()
 
     def tearDown(self):
         h2l.close_app(self.app)
 
     @gen_test
     def test_H2L_mobile_push_to_amqp_success(self):
-        self._channel = yield AMQPConnectionSingleton(
-                                    ).get_channel(self.app.conf, self.io_loop)
+        conn = AMQPConnectionSingleton.AMQPConnection(self.app.conf)
+        self._channel = yield conn.create_amqp_client(self.io_loop)
         self._channel.queue_bind(
             self.on_bindok, "mobile_integration_queue",
             self.app.conf.exchange, "mobile.v1.integration.toto")

@@ -6,18 +6,19 @@ from heroku2elk.lib.amqp import AMQPConnectionSingleton
 import json
 
 
-class TestH2LApp(AsyncHTTPTestCase):
+class TestH2LHerokuHandler(AsyncHTTPTestCase):
 
     def get_app(self):
         conf = MainConfig()
         conf.environments = ['integration']
         conf.apis = ['heroku:v1:heroku2elk.lib.handlers.HerokuHandler2']
         main.configure_logger()
+        self.conf = conf
         self.app = main.make_app(conf)
         return self.app
 
     def setUp(self):
-        super(TestH2LApp, self).setUp()
+        super().setUp()
 
     def tearDown(self):
         main.close_app(self.app)
@@ -34,10 +35,10 @@ class TestH2LApp(AsyncHTTPTestCase):
 
     @gen_test
     def test_H2L_heroku_push_to_amqp_success(self):
-        conn = AMQPConnectionSingleton.AMQPConnection()
+        conn = AMQPConnectionSingleton.AMQPConnection(self.conf)
         self._channel = yield conn.create_amqp_client(self.io_loop)
         self._channel.queue_bind(self.on_bindok, "heroku_integration_queue",
-                                 MainConfig.exchange,
+                                 self.conf.exchange,
                                  "heroku.v1.integration.toto")
         self._channel.basic_consume(self.on_message,
                                     "heroku_integration_queue")

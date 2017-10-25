@@ -1,5 +1,6 @@
 
-def start_debug(conf):
+def start_debug(conf, delay=60):
+    'wait for tenth delay value in seconds before dump statistics'
 
     if not conf.tornado_debug:
 
@@ -14,9 +15,6 @@ def start_debug(conf):
         from tracemalloc import start, Filter, take_snapshot
 
         from tornado.ioloop import PeriodicCallback, IOLoop
-
-        # wait for tenth this value in seconds before dump statistics
-        delay = 60
 
         def start_debug():
 
