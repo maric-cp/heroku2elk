@@ -49,6 +49,7 @@ class TestH2LMobile(AsyncHTTPTestCase):
         self._channel.close()
 
     def on_message(self, unused_channel, basic_deliver, properties, body):
+        print(body)
         if not self.futureMsg.done():
             self.futureMsg.set_result(body)
         self._channel.basic_ack(basic_deliver.delivery_tag)
